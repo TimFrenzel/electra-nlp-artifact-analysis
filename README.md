@@ -2,6 +2,8 @@
 
 A research project investigating whether pre-trained language models genuinely solve NLP tasks or exploit spurious correlations (dataset artifacts) in training data.
 
+> **Note**: This project builds on the [fp-dataset-artifacts starter code](https://github.com/gregdurrett/fp-dataset-artifacts) by Greg Durrett (UT Austin), extending it with comprehensive analysis and mitigation modules. See [`resources/starter_code.md`](resources/starter_code.md) for details.
+
 ## Overview
 
 This project fine-tunes ELECTRA-small on standard NLP benchmarks to:
@@ -18,18 +20,25 @@ electra-nlp-artifact-analysis/
 ├── README.md
 ├── requirements.txt
 ├── run.py                          # Main training/evaluation script
-├── analysis/
+├── helpers.py                      # Preprocessing & metrics (from starter code)
+├── analysis/                       # Our analysis extensions
 │   ├── error_analysis.py          # Tools for analyzing model failures
 │   ├── contrast_sets.py           # Contrast set evaluation
 │   └── visualization.py           # Plotting utilities
-├── mitigation/
+├── mitigation/                     # Our mitigation extensions
 │   ├── dataset_cartography.py    # Hard example identification
 │   ├── debiasing.py              # Bias mitigation methods
 │   └── adversarial_training.py   # Adversarial augmentation
-├── notebooks/
+├── notebooks/                      # Interactive analysis
 │   ├── 01_baseline_training.ipynb
 │   ├── 02_artifact_analysis.ipynb
 │   └── 03_mitigation_eval.ipynb
+├── resources/                      # Research papers & repos (40+ resources)
+│   ├── starter_code.md            # Starter code documentation
+│   ├── papers/                    # Academic papers by topic
+│   ├── github_repos/              # High-quality implementations
+│   ├── benchmarks/                # Evaluation benchmarks
+│   └── research_groups/           # Key researchers
 ├── results/
 │   ├── baseline/
 │   ├── analysis/
