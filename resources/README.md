@@ -10,6 +10,7 @@ This directory contains a curated collection of recent academic papers, GitHub r
 resources/
 ├── README.md                    # This file
 ├── papers/                      # Academic papers organized by topic
+│   ├── snli_specific.md         # ⭐ SNLI-specific artifacts and biases
 │   ├── spurious_correlations.md
 │   ├── debiasing_methods.md
 │   ├── dataset_cartography.md

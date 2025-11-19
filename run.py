@@ -141,6 +141,8 @@ def load_nli_dataset(dataset_name, max_train_samples=None, max_eval_samples=None
     # Handle dataset splits
     if "train" in dataset:
         train_dataset = dataset["train"]
+        # Filter out invalid labels (SNLI has label=-1 for unlabeled examples)
+        train_dataset = train_dataset.filter(lambda x: x["label"] != -1)
         if max_train_samples:
             train_dataset = train_dataset.select(range(max_train_samples))
     else:
@@ -153,8 +155,11 @@ def load_nli_dataset(dataset_name, max_train_samples=None, max_eval_samples=None
     else:
         eval_dataset = None
 
-    if eval_dataset and max_eval_samples:
-        eval_dataset = eval_dataset.select(range(max_eval_samples))
+    if eval_dataset:
+        # Filter out invalid labels
+        eval_dataset = eval_dataset.filter(lambda x: x["label"] != -1)
+        if max_eval_samples:
+            eval_dataset = eval_dataset.select(range(max_eval_samples))
 
     return train_dataset, eval_dataset
 
