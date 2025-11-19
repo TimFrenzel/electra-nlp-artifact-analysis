@@ -360,7 +360,13 @@ def main():
         squad_metric = evaluate.load("squad")
 
         def compute_qa_metrics_squad(eval_preds):
-            """Compute SQuAD F1 and EM metrics."""
+            """Compute SQuAD F1 and EM metrics.
+
+            Note: QuestionAnsweringTrainer calls postprocess_qa_predictions() first,
+            then passes formatted predictions/references to this function.
+            predictions: List[{"id": str, "prediction_text": str}]
+            label_ids: List[{"id": str, "answers": dict}]
+            """
             return squad_metric.compute(
                 predictions=eval_preds.predictions,
                 references=eval_preds.label_ids
@@ -384,7 +390,7 @@ def main():
         evaluation_strategy="steps" if args.do_eval else "no",
         save_total_limit=3,
         load_best_model_at_end=True if args.do_eval else False,
-        metric_for_best_model="accuracy" if args.task == "nli" else "exact_match",
+        metric_for_best_model="accuracy" if args.task == "nli" else "f1",  # SQuAD metric returns "f1" and "exact"
         fp16=args.fp16,
         no_cuda=args.no_cuda,
         seed=args.seed,
