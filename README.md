@@ -1,6 +1,8 @@
 # ELECTRA NLP Artifact Analysis
 
-A research project investigating whether pre-trained language models genuinely solve NLP tasks or exploit spurious correlations (dataset artifacts) in training data.
+**Professional Research Project** - Investigating whether pre-trained language models genuinely solve NLP tasks or exploit spurious correlations (dataset artifacts) in training data.
+
+> **Note**: This project builds on the [fp-dataset-artifacts starter code](https://github.com/gregdurrett/fp-dataset-artifacts) by Greg Durrett (UT Austin), extending it with comprehensive analysis and mitigation modules. See [`resources/starter_code.md`](resources/starter_code.md) for details.
 
 ## Overview
 
@@ -18,18 +20,30 @@ electra-nlp-artifact-analysis/
 ├── README.md
 ├── requirements.txt
 ├── run.py                          # Main training/evaluation script
-├── analysis/
+├── helpers.py                      # Preprocessing & metrics (from starter code)
+├── analysis/                       # Our analysis extensions
 │   ├── error_analysis.py          # Tools for analyzing model failures
 │   ├── contrast_sets.py           # Contrast set evaluation
 │   └── visualization.py           # Plotting utilities
-├── mitigation/
+├── mitigation/                     # Our mitigation extensions
 │   ├── dataset_cartography.py    # Hard example identification
 │   ├── debiasing.py              # Bias mitigation methods
 │   └── adversarial_training.py   # Adversarial augmentation
-├── notebooks/
+├── notebooks/                      # Interactive analysis (local)
 │   ├── 01_baseline_training.ipynb
 │   ├── 02_artifact_analysis.ipynb
 │   └── 03_mitigation_eval.ipynb
+├── colab_training.ipynb            # Google Colab: Baseline training (A100 GPU)
+├── colab_analysis_part1.ipynb      # Google Colab: Part 1 - Artifact analysis
+├── resources/                      # Research papers & repos (40+ resources)
+│   ├── starter_code.md            # Starter code documentation
+│   ├── papers/                    # Academic papers by topic
+│   ├── github_repos/              # High-quality implementations
+│   ├── benchmarks/                # Evaluation benchmarks
+│   └── research_groups/           # Key researchers
+├── report/                         # Technical report deliverables
+│   ├── technical_report.md        # ACL-style report template (3-8 pages)
+│   └── project_notes.md           # Project workflow and notes
 ├── results/
 │   ├── baseline/
 │   ├── analysis/
@@ -107,6 +121,23 @@ Choose one of the following datasets for your analysis:
 - **HuggingFace**: `hotpotqa/hotpot_qa`
 
 ## Quick Start
+
+### Google Colab Workflow (Recommended for A100 GPU)
+
+This project is optimized for Google Colab with A100 GPU access:
+
+1. **Upload to Google Drive**: Clone or upload this repository to your Google Drive
+2. **Open Colab Notebooks**:
+   - `colab_training.ipynb` - Train baseline ELECTRA-small on SNLI (~1-3 hours)
+   - `colab_analysis_part1.ipynb` - Systematic artifact analysis (~1-2 hours)
+3. **Run Analysis**: Complete Part 1 (artifact detection) before Part 2 (mitigation)
+4. **Write Report**: Use `report/technical_report.md` template to document findings
+
+All models and results save to Google Drive for persistence across sessions.
+
+See `report/project_notes.md` for detailed workflow and checklist.
+
+### Local Training
 
 ### 1. Train Baseline Model
 
@@ -304,14 +335,22 @@ plot_performance_breakdown(
 3. **Use mixed precision**: Add `--fp16` flag for faster GPU training
 4. **Batch size**: Increase if GPU memory allows (faster training)
 
-## Free Compute Options
+## Computational Resources
 
-- **Google Colab**: Free GPU access with session limits
-  - Pro tier: $9.99/month for longer sessions
-  - Example notebook: `notebooks/colab_training.ipynb`
-- **Google Cloud Platform**: Free credits for new accounts
-  - Sufficient for full project completion
-- **Kaggle Notebooks**: 30 hours/week free GPU
+### Google Colab (Primary Platform)
+
+This project is designed for **Google Colab with A100 GPU**:
+
+- **Free Tier**: Sufficient for complete project (with session management)
+- **Colab Pro** ($9.99/month): Longer sessions, priority A100 access
+- **Notebooks**: `colab_training.ipynb` and `colab_analysis_part1.ipynb`
+- **Storage**: Google Drive integration for persistent models/results
+
+### Alternative Platforms
+
+- **Google Cloud Platform**: Free credits for new accounts (sufficient for completion)
+- **Kaggle Notebooks**: 30 hours/week free GPU (T4/P100)
+- **Local GPU**: Any CUDA-capable GPU with 8GB+ VRAM
 
 ## Troubleshooting
 

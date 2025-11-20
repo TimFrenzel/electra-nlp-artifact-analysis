@@ -28,6 +28,15 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 import evaluate
 
+# Import helpers from starter code (Greg Durrett's fp-dataset-artifacts)
+from helpers import (
+    prepare_dataset_nli,
+    compute_accuracy,
+    prepare_train_dataset_qa,
+    prepare_validation_dataset_qa,
+    QuestionAnsweringTrainer,
+)
+
 # Setup logging
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -141,6 +150,8 @@ def load_nli_dataset(dataset_name, max_train_samples=None, max_eval_samples=None
     # Handle dataset splits
     if "train" in dataset:
         train_dataset = dataset["train"]
+        # Filter out invalid labels (SNLI has label=-1 for unlabeled examples)
+        train_dataset = train_dataset.filter(lambda x: x["label"] != -1)
         if max_train_samples:
             train_dataset = train_dataset.select(range(max_train_samples))
     else:
@@ -153,8 +164,11 @@ def load_nli_dataset(dataset_name, max_train_samples=None, max_eval_samples=None
     else:
         eval_dataset = None
 
-    if eval_dataset and max_eval_samples:
-        eval_dataset = eval_dataset.select(range(max_eval_samples))
+    if eval_dataset:
+        # Filter out invalid labels
+        eval_dataset = eval_dataset.filter(lambda x: x["label"] != -1)
+        if max_eval_samples:
+            eval_dataset = eval_dataset.select(range(max_eval_samples))
 
     return train_dataset, eval_dataset
 
@@ -188,19 +202,11 @@ def load_qa_dataset(dataset_name, max_train_samples=None, max_eval_samples=None)
     return train_dataset, eval_dataset
 
 
-def preprocess_nli(examples, tokenizer, max_seq_length=512):
-    """Preprocess NLI examples."""
-    # SNLI/MultiNLI format: premise, hypothesis -> label
-    return tokenizer(
-        examples["premise"],
-        examples["hypothesis"],
-        truncation=True,
-        padding="max_length",
-        max_length=max_seq_length,
-    )
+# NOTE: preprocess_nli and preprocess_qa functions are now provided by helpers.py
+# from the starter code (Greg Durrett's fp-dataset-artifacts)
+# See: prepare_dataset_nli, prepare_train_dataset_qa, prepare_validation_dataset_qa
 
-
-def preprocess_qa(examples, tokenizer, max_seq_length=512):
+def _legacy_preprocess_qa(examples, tokenizer, max_seq_length=512):
     """Preprocess QA examples."""
     # SQuAD format: question, context -> answer
     questions = [q.strip() for q in examples["question"]]
@@ -260,18 +266,19 @@ def preprocess_qa(examples, tokenizer, max_seq_length=512):
     return tokenized
 
 
-def compute_nli_metrics(eval_pred: EvalPrediction):
-    """Compute metrics for NLI task."""
-    metric = evaluate.load("accuracy")
-    logits, labels = eval_pred.predictions, eval_pred.label_ids
-    predictions = np.argmax(logits, axis=-1)
-    return metric.compute(predictions=predictions, references=labels)
+# NOTE: compute_nli_metrics and compute_qa_metrics are now provided by helpers.py
+# NLI: Use compute_accuracy from helpers
+# QA: Use QuestionAnsweringTrainer which handles postprocessing and metrics automatically
 
+def _legacy_compute_qa_metrics(eval_pred: EvalPrediction):
+    """LEGACY: Simplified QA metrics (replaced by helpers.py implementation).
 
-def compute_qa_metrics(eval_pred: EvalPrediction):
-    """Compute metrics for QA task."""
-    # For QA, we'd need to implement F1/EM computation
-    # This is a simplified version
+    This was a simplified version that only compared token positions.
+    The proper implementation from helpers.py:
+    - Extracts actual answer text from context
+    - Computes real F1 and Exact Match scores
+    - Handles edge cases properly
+    """
     start_logits, end_logits = eval_pred.predictions
     start_positions, end_positions = eval_pred.label_ids
 
@@ -311,42 +318,61 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model)
 
     # Preprocess datasets
+    # Keep reference to raw eval data for QA postprocessing
+    raw_eval_dataset = eval_dataset
+
     if args.task == "nli":
         if train_dataset:
             train_dataset = train_dataset.map(
-                lambda x: preprocess_nli(x, tokenizer, args.max_seq_length),
+                lambda x: prepare_dataset_nli(x, tokenizer, args.max_seq_length),
                 batched=True,
                 remove_columns=train_dataset.column_names,
             )
         if eval_dataset:
             eval_dataset = eval_dataset.map(
-                lambda x: preprocess_nli(x, tokenizer, args.max_seq_length),
+                lambda x: prepare_dataset_nli(x, tokenizer, args.max_seq_length),
                 batched=True,
                 remove_columns=eval_dataset.column_names,
             )
     elif args.task == "qa":
         if train_dataset:
             train_dataset = train_dataset.map(
-                lambda x: preprocess_qa(x, tokenizer, args.max_seq_length),
+                lambda x: prepare_train_dataset_qa(x, tokenizer, args.max_seq_length),
                 batched=True,
                 remove_columns=train_dataset.column_names,
             )
         if eval_dataset:
             eval_dataset = eval_dataset.map(
-                lambda x: preprocess_qa(x, tokenizer, args.max_seq_length),
+                lambda x: prepare_validation_dataset_qa(x, tokenizer),
                 batched=True,
                 remove_columns=eval_dataset.column_names,
             )
 
-    # Load model
+    # Load model and setup metrics
     if args.task == "nli":
         model = AutoModelForSequenceClassification.from_pretrained(
             args.model, num_labels=num_labels
         )
-        compute_metrics = compute_nli_metrics
+        compute_metrics = compute_accuracy
     elif args.task == "qa":
         model = AutoModelForQuestionAnswering.from_pretrained(args.model)
-        compute_metrics = compute_qa_metrics
+        # Load SQuAD metric for QA
+        squad_metric = evaluate.load("squad")
+
+        def compute_qa_metrics_squad(eval_preds):
+            """Compute SQuAD F1 and EM metrics.
+
+            Note: QuestionAnsweringTrainer calls postprocess_qa_predictions() first,
+            then passes formatted predictions/references to this function.
+            predictions: List[{"id": str, "prediction_text": str}]
+            label_ids: List[{"id": str, "answers": dict}]
+            """
+            return squad_metric.compute(
+                predictions=eval_preds.predictions,
+                references=eval_preds.label_ids
+            )
+
+        compute_metrics = compute_qa_metrics_squad
 
     # Training arguments
     training_args = TrainingArguments(
@@ -364,7 +390,7 @@ def main():
         evaluation_strategy="steps" if args.do_eval else "no",
         save_total_limit=3,
         load_best_model_at_end=True if args.do_eval else False,
-        metric_for_best_model="accuracy" if args.task == "nli" else "exact_match",
+        metric_for_best_model="accuracy" if args.task == "nli" else "f1",  # SQuAD metric returns "f1" and "exact"
         fp16=args.fp16,
         no_cuda=args.no_cuda,
         seed=args.seed,
@@ -372,14 +398,27 @@ def main():
     )
 
     # Initialize trainer
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset if args.do_train else None,
-        eval_dataset=eval_dataset if args.do_eval else None,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-    )
+    if args.task == "qa":
+        # Use QuestionAnsweringTrainer for proper QA evaluation
+        trainer = QuestionAnsweringTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset if args.do_train else None,
+            eval_dataset=eval_dataset if args.do_eval else None,
+            eval_examples=raw_eval_dataset if args.do_eval else None,
+            tokenizer=tokenizer,
+            compute_metrics=compute_metrics,
+        )
+    else:
+        # Use standard Trainer for NLI
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset if args.do_train else None,
+            eval_dataset=eval_dataset if args.do_eval else None,
+            tokenizer=tokenizer,
+            compute_metrics=compute_metrics,
+        )
 
     # Training
     if args.do_train:
